@@ -1,108 +1,10 @@
 "use client";
-import { use, useState, useRef, useEffect } from "react";
+import { use, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, Asset, Template, Task, stages } from "@/lib/api";
 import { TaskCard } from "@/components/task-card";
-function Upload({
-  index,
-  onChange,
-}: {
-  index: number;
-  onChange: (asset: Asset | null) => void;
-}) {
-  const [state, setState] = useState<{
-    preview?: string;
-    asset?: Asset;
-    busy?: boolean;
-    error?: string;
-  }>({});
-  const request = useRef<AbortController | null>(null);
-  const preview = useRef<string | null>(null);
-  useEffect(
-    () => () => {
-      request.current?.abort();
-      if (preview.current) URL.revokeObjectURL(preview.current);
-    },
-    [],
-  );
-  async function choose(file?: File) {
-    request.current?.abort();
-    onChange(null);
-    if (preview.current) URL.revokeObjectURL(preview.current);
-    preview.current = null;
-    if (!file) {
-      setState({});
-      return;
-    }
-    if (
-      !["image/jpeg", "image/png"].includes(file.type) ||
-      file.size > 5242880
-    ) {
-      setState({ error: "请选择不超过 5MB 的 JPEG 或 PNG 图片" });
-      return;
-    }
-    preview.current = URL.createObjectURL(file);
-    const url = preview.current;
-    const controller = new AbortController();
-    request.current = controller;
-    setState({ preview: url, busy: true });
-    const body = new FormData();
-    body.append("file", file);
-    try {
-      const asset = await api<Asset>("/assets", {
-        method: "POST",
-        body,
-        signal: controller.signal,
-      });
-      if (!controller.signal.aborted) {
-        setState({ preview: url, asset });
-        onChange(asset);
-      }
-    } catch (e) {
-      if (!controller.signal.aborted)
-        setState({ preview: url, error: (e as Error).message });
-    }
-  }
-  return (
-    <div className="upload-slot">
-      {state.preview ? (
-        <img src={state.preview} alt={`素材 ${index + 1} 预览`} />
-      ) : (
-        <span className="upload-icon">＋</span>
-      )}
-      <label className="upload-label">
-        {state.asset ? "替换图片" : `选择图片 ${index + 1}`}
-        <input
-          aria-label={`上传或替换图片 ${index + 1}`}
-          type="file"
-          accept="image/jpeg,image/png"
-          onChange={(e) => {
-            void choose(e.target.files?.[0]);
-            e.target.value = "";
-          }}
-        />
-      </label>
-      <small role="status">
-        {state.busy
-          ? "正在上传…"
-          : state.asset
-            ? "已上传"
-            : "JPEG / PNG · 最大 5MB"}
-      </small>
-      {state.preview && (
-        <button className="text-button" onClick={() => choose()}>
-          移除图片 {index + 1}
-        </button>
-      )}
-      {state.error && (
-        <p className="error" role="alert">
-          {state.error}，请重新选择。
-        </p>
-      )}
-    </div>
-  );
-}
+import { Upload } from "@/components/upload";
 export default function Detail({
   params,
 }: {
@@ -137,6 +39,21 @@ function Editor({ id }: { id: string }) {
   );
   async function submit() {
     if (!t || lock.current) return;
+    if (
+      Array.from({ length: t.requiredImageCount }, (_, i) => assets[i]).some(
+        (asset) => !asset,
+      )
+    ) {
+      setError("请先准备好全部素材");
+      return;
+    }
+    if (
+      process.env.NEXT_PUBLIC_DEMO_MODE === "true" &&
+      (!Number.isInteger(delay) || delay < 0 || delay > 30000)
+    ) {
+      setError("每阶段耗时应为 0～30000 的整数毫秒");
+      return;
+    }
     lock.current = true;
     setSubmitting(true);
     setError("");
@@ -202,13 +119,17 @@ function Editor({ id }: { id: string }) {
               </small>
             </h2>
             <p className="muted">
-              需要 {t.requiredImageCount} 张不同图片，每张不超过 5MB。
+              需要 {t.requiredImageCount} 张不同图片，每张不超过{" "}
+              {Math.round(t.maxFileSizeBytes / 1024 / 1024)}MB。
             </p>
             <div className="uploads">
               {Array.from({ length: t.requiredImageCount }, (_, i) => (
                 <Upload
                   key={i}
                   index={i}
+                  acceptedMimeTypes={t.acceptedMimeTypes}
+                  maxFileSizeBytes={t.maxFileSizeBytes}
+                  disabled={submitting}
                   onChange={(asset) => setAssets((a) => ({ ...a, [i]: asset }))}
                 />
               ))}

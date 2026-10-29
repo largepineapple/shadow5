@@ -1,6 +1,7 @@
 "use client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { active, api, Task, statuses, stages } from "@/lib/api";
+import { ResultPreview } from "./result-preview";
 export function TaskCard({ initial, user }: { initial: Task; user: string }) {
   const client = useQueryClient();
   const query = useQuery({
@@ -18,7 +19,10 @@ export function TaskCard({ initial, user }: { initial: Task; user: string }) {
   return (
     <article className={`task-card ${task.status.toLowerCase()}`}>
       <div className="task-heading">
-        <span className="status">{statuses[task.status]}</span>
+        <span key={task.status} className="status">
+          {active(task) && <span className="status-dot" aria-hidden="true" />}
+          {statuses[task.status]}
+        </span>
         <time>
           {new Date(
             task.createdAt + (/Z$/.test(task.createdAt) ? "" : "Z"),
@@ -29,7 +33,17 @@ export function TaskCard({ initial, user }: { initial: Task; user: string }) {
       <small className="task-id">{task.id}</small>
       <ol className="steps">
         {Object.entries(stages).map(([stage, label]) => (
-          <li key={stage} className={task.stage === stage ? "current" : ""}>
+          <li
+            key={stage}
+            aria-current={
+              active(task) && task.stage === stage ? "step" : undefined
+            }
+            data-state={
+              query.data.steps.find((s) => s.stage === stage)?.status ||
+              "WAITING"
+            }
+            className={task.stage === stage ? "current" : ""}
+          >
             {label}
             {query.data.steps.find((s) => s.stage === stage)?.status ===
             "SUCCEEDED"
@@ -59,13 +73,7 @@ export function TaskCard({ initial, user }: { initial: Task; user: string }) {
         </div>
       )}
       {task.resultUrl && (
-        <a href={task.resultUrl} target="_blank" rel="noreferrer">
-          <img
-            className="result"
-            src={task.resultUrl}
-            alt="制作结果，点击打开完整图片"
-          />
-        </a>
+        <ResultPreview key={task.resultUrl} url={task.resultUrl} />
       )}
       <button
         className="text-button"

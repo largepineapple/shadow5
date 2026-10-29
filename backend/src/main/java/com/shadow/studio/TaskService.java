@@ -32,11 +32,13 @@ public class TaskService {
         || new HashSet<>(input.assetIds()).size() != input.assetIds().size())
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请按要求上传不重复的图片");
     for (String id : input.assetIds()) {
+      if (id == null || !id.matches(Models.UUID_PATTERN))
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "素材 ID 格式不正确");
       Asset a = store.assetById(id, user);
       if (a == null
           || !Files.isRegularFile(files.path(id))
-          || a.sizeBytes() > 5242880
-          || !Set.of("image/jpeg", "image/png").contains(a.mimeType()))
+          || a.sizeBytes() > template.getMaxFileSizeBytes()
+          || !template.getAcceptedMimeTypes().contains(a.mimeType()))
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "素材不可用或不属于当前用户");
     }
     if (!demo && (input.failAt() != null || input.delayMs() != null))

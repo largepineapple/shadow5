@@ -14,14 +14,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class IdentityFilter extends OncePerRequestFilter {
   private final Store store;
+  private final RequestErrors errors;
   private final String origin;
   private final boolean secure;
 
   public IdentityFilter(
       Store store,
+      RequestErrors errors,
       @Value("${studio.origin}") String origin,
       @Value("${studio.secure-cookie}") boolean secure) {
     this.store = store;
+    this.errors = errors;
     this.origin = origin;
     this.secure = secure;
   }
@@ -46,7 +49,7 @@ public class IdentityFilter extends OncePerRequestFilter {
     if (!Set.of("GET", "HEAD", "OPTIONS").contains(req.getMethod())
         && req.getHeader("Origin") != null
         && !origin.equals(req.getHeader("Origin"))) {
-      res.sendError(403, "Origin not allowed");
+      errors.send(req, res, 403, "ORIGIN_FORBIDDEN", "请求来源不受信任");
       return;
     }
     String token = null;
@@ -56,7 +59,7 @@ public class IdentityFilter extends OncePerRequestFilter {
     String user = token == null ? null : store.identity(hash(token));
     if (user == null) {
       if (!req.getRequestURI().equals("/api/session")) {
-        res.sendError(401, "请刷新页面以恢复身份");
+        errors.send(req, res, 401, "SESSION_REQUIRED", "请刷新页面以恢复身份");
         return;
       }
       token = UUID.randomUUID() + "." + UUID.randomUUID();

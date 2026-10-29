@@ -26,11 +26,18 @@ class FilesServiceTest {
   }
 
   @Test
-  void resultIsStoredAndDecodable() throws Exception {
+  void renderedResultIsDecodableBeforeMetadataTransaction() throws Exception {
     Store store = mock(Store.class);
     FilesService files = new FilesService(store, root.toString());
     var asset = files.result("user");
     assertNotNull(javax.imageio.ImageIO.read(files.path(asset.id()).toFile()));
-    verify(store).asset(asset);
+    verifyNoInteractions(store);
+  }
+
+  @Test
+  void storageRejectsTraversal() throws Exception {
+    FilesService files = new FilesService(mock(Store.class), root.toString());
+    assertThrows(IllegalArgumentException.class, () -> files.path("../outside"));
+    assertThrows(IllegalArgumentException.class, () -> files.path(null));
   }
 }

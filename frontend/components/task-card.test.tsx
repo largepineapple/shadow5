@@ -1,6 +1,12 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor, fireEvent, cleanup } from "@testing-library/react";
+import {
+  render,
+  screen,
+  waitFor,
+  fireEvent,
+  cleanup,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TaskCard } from "./task-card";
 import type { Task } from "../lib/api";
@@ -84,15 +90,13 @@ describe("任务隔离与请求异常", () => {
 });
 
 it("终态停止自动查询", async () => {
-  const fetch = vi
-    .fn()
-    .mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        task: { ...task("done"), status: "SUCCEEDED" },
-        steps: [],
-      }),
-    });
+  const fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      task: { ...task("done"), status: "SUCCEEDED" },
+      steps: [],
+    }),
+  });
   vi.stubGlobal("fetch", fetch);
   const client = mount([task("done")]);
   await screen.findByText("制作完成");
@@ -101,7 +105,6 @@ it("终态停止自动查询", async () => {
   expect(fetch).toHaveBeenCalledTimes(calls);
   client.clear();
 });
-
 
 it("离开页面会取消在途查询且不再轮询", async () => {
   let observedSignal: AbortSignal | undefined;
@@ -114,7 +117,7 @@ it("离开页面会取消在途查询且不再轮询", async () => {
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
   cleanup();
   expect(observedSignal?.aborted).toBe(true);
-  await new Promise(resolve => setTimeout(resolve, 2200));
+  await new Promise((resolve) => setTimeout(resolve, 2200));
   expect(fetch).toHaveBeenCalledTimes(1);
   client.clear();
 });

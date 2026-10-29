@@ -2,6 +2,8 @@ package com.shadow.studio;
 
 import com.shadow.studio.Models.*;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
 import java.io.IOException;
 import java.util.*;
 import org.springframework.core.io.*;
@@ -40,19 +42,21 @@ public class Api {
   }
 
   @GetMapping("/templates/{id}")
-  public Template template(@PathVariable String id) {
+  public Template template(@PathVariable @Pattern(regexp = Models.TEMPLATE_PATTERN) String id) {
     Template t = store.template(id);
     if (t == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "模板不存在");
     return t;
   }
 
   @PostMapping("/assets")
-  public Asset upload(HttpServletRequest req, @RequestParam MultipartFile file) throws IOException {
-    return files.upload(user(req), file);
+  public AssetView upload(HttpServletRequest req, @RequestParam MultipartFile file)
+      throws IOException {
+    return AssetView.of(files.upload(user(req), file));
   }
 
   @GetMapping("/assets/{id}/content")
-  public ResponseEntity<Resource> content(HttpServletRequest req, @PathVariable String id) {
+  public ResponseEntity<Resource> content(
+      HttpServletRequest req, @PathVariable @Pattern(regexp = Models.UUID_PATTERN) String id) {
     Asset a = store.assetById(id, user(req));
     if (a == null || !java.nio.file.Files.isRegularFile(files.path(id)))
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "素材不存在");
@@ -63,56 +67,24 @@ public class Api {
   }
 
   @PostMapping("/tasks")
-  public ResponseEntity<Task> create(HttpServletRequest req, @RequestBody CreateTask input) {
-    return ResponseEntity.status(202).body(tasks.create(user(req), input));
+  public ResponseEntity<TaskView> create(
+      HttpServletRequest req, @Valid @RequestBody CreateTask input) {
+    return ResponseEntity.status(202).body(TaskView.of(tasks.create(user(req), input)));
   }
 
   @GetMapping("/tasks")
-  public List<Task> history(
+  public List<TaskView> history(
       HttpServletRequest req,
-      @RequestParam(defaultValue = "0") int offset,
-      @RequestParam(defaultValue = "30") int limit) {
-    return store.history(user(req), Math.clamp(limit, 1, 100), Math.max(offset, 0));
+      @RequestParam(defaultValue = "0") @Min(0) @Max(1000000) int offset,
+      @RequestParam(defaultValue = "30") @Min(1) @Max(100) int limit) {
+    return store.history(user(req), limit, offset).stream().map(TaskView::of).toList();
   }
 
   @GetMapping("/tasks/{id}")
-  public Map<String, Object> task(HttpServletRequest req, @PathVariable String id) {
+  public Map<String, Object> task(
+      HttpServletRequest req, @PathVariable @Pattern(regexp = Models.UUID_PATTERN) String id) {
     Task t = store.task(id, user(req));
     if (t == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "任务不存在");
-    return Map.of("task", t, "steps", store.steps(id));
-  }
-}
-
-@RestControllerAdvice
-class ApiErrors {
-  @ExceptionHandler(ResponseStatusException.class)
-  ResponseEntity<?> known(ResponseStatusException e) {
-    return ResponseEntity.status(e.getStatusCode())
-        .body(
-            Map.of(
-                "code",
-                e.getStatusCode().value(),
-                "message",
-                Objects.requireNonNullElse(e.getReason(), "请求失败")));
-  }
-
-  @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
-  ResponseEntity<?> large() {
-    return ResponseEntity.status(413).body(Map.of("message", "图片不能超过 5MB"));
-  }
-
-  @ExceptionHandler({
-    org.springframework.http.converter.HttpMessageNotReadableException.class,
-    org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
-    org.springframework.web.multipart.support.MissingServletRequestPartException.class
-  })
-  ResponseEntity<?> invalid() {
-    return ResponseEntity.badRequest().body(Map.of("message", "请求格式不正确，请检查参数"));
-  }
-
-  @ExceptionHandler(Exception.class)
-  ResponseEntity<?> other(Exception e) {
-    org.slf4j.LoggerFactory.getLogger(ApiErrors.class).error("API request failed", e);
-    return ResponseEntity.internalServerError().body(Map.of("message", "服务暂时不可用，请稍后重试"));
+    return Map.of("task", TaskView.of(t), "steps", store.steps(id));
   }
 }

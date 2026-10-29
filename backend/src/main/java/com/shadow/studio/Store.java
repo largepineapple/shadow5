@@ -50,18 +50,21 @@ public interface Store {
           + " status='QUEUED'")
   int claim(String id);
 
+  @Select("SELECT * FROM tasks WHERE id=#{id} FOR UPDATE")
+  Task lockTask(String id);
+
   @Update(
       "UPDATE tasks SET stage=#{stage},updated_at=CURRENT_TIMESTAMP(3) WHERE id=#{id} AND"
           + " status='RUNNING'")
-  void stage(@Param("id") String id, @Param("stage") String stage);
+  int stage(@Param("id") String id, @Param("stage") String stage);
 
   @Insert("INSERT INTO task_steps(task_id,stage,status) VALUES(#{id},#{stage},'RUNNING')")
   void begin(@Param("id") String id, @Param("stage") String stage);
 
   @Update(
       "UPDATE task_steps SET status=#{status},finished_at=CURRENT_TIMESTAMP(3) WHERE task_id=#{id}"
-          + " AND stage=#{stage}")
-  void end(@Param("id") String id, @Param("stage") String stage, @Param("status") String status);
+          + " AND stage=#{stage} AND status='RUNNING'")
+  int end(@Param("id") String id, @Param("stage") String stage, @Param("status") String status);
 
   @Select(
       "SELECT stage,status,started_at,finished_at FROM task_steps WHERE task_id=#{id} ORDER BY"
@@ -76,13 +79,13 @@ public interface Store {
   @Update(
       "UPDATE tasks SET status='SUCCEEDED',result_url=#{url},updated_at=CURRENT_TIMESTAMP(3) WHERE"
           + " id=#{id} AND status='RUNNING'")
-  void succeed(@Param("id") String id, @Param("url") String url);
+  int succeed(@Param("id") String id, @Param("url") String url);
 
   @Update(
       "UPDATE tasks SET"
-          + " status='FAILED',failed_stage=stage,error=#{error},updated_at=CURRENT_TIMESTAMP(3)"
+          + " status='FAILED',failed_stage=#{stage},error=#{error},updated_at=CURRENT_TIMESTAMP(3)"
           + " WHERE id=#{id} AND status='RUNNING'")
-  void fail(@Param("id") String id, @Param("error") String error);
+  int fail(@Param("id") String id, @Param("stage") String stage, @Param("error") String error);
 
   @Update(
       "UPDATE tasks SET status='FAILED',failed_stage=stage,error='服务重启中断了制作，请重新创建任务' WHERE"

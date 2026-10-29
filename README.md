@@ -60,26 +60,26 @@ MySQL 集成测试：设置 MYSQL_INTEGRATION=true、DB_URL、DB_USER、DB_PASSW
 
 ## API 合约
 
-先 POST /api/session 建立或恢复匿名 Cookie，后续请求带 Cookie。API 错误返回 HTTP 状态码及 message；业务校验 400、身份缺失 401、Origin 不符 403、不存在或非本人资源 404、过大 413、图片类型错误 415。图片数量、真实类型、大小、像素、归属及文件存在均在服务端校验。
+先 POST /api/session 建立或恢复匿名 Cookie，后续请求带 Cookie。API 错误统一返回 code、message、fieldErrors、requestId，并通过 X-Request-ID 响应头关联日志；框架错误保留 HTTP 状态码和必要响应头；业务校验 400、身份缺失 401、Origin 不符 403、不存在或非本人资源 404、过大 413、图片类型错误 415。图片数量、真实类型、大小、像素、归属及文件存在均在服务端校验。
 
 | 方法与路径 | 请求与响应 |
 | --- | --- |
 | POST /api/session | 无 body；返回 {id}，设置 HttpOnly Cookie |
 | GET /api/templates?category=旅行记忆 | 返回模板数组：id/title/category/description/coverUrl/requiredImageCount/acceptedMimeTypes/maxFileSizeBytes |
 | GET /api/templates/{id} | 返回单个模板，不存在 404 |
-| POST /api/assets | multipart file；返回 id/userId/mimeType/sizeBytes/previewUrl |
+| POST /api/assets | multipart file；返回 id/mimeType/sizeBytes/previewUrl |
 | GET /api/assets/{id}/content | 所属用户才能访问的图片内容 |
 | POST /api/tasks | {templateId,assetIds:[id,...],failAt?,delayMs?}；202 返回已持久化任务，不等待执行 |
-| GET /api/tasks?offset=0&limit=30 | 当前用户历史数组，最多 100 条/页 |
+| GET /api/tasks?offset=0&limit=30 | 当前用户历史数组；offset 为 0～1000000，limit 为 1～100，越界返回 400 |
 | GET /api/tasks/{id} | {task,steps}；每步 stage/status/startedAt/finishedAt |
 
-任务字段：id、userId、templateId、status、stage、failedStage、error、resultUrl、failAt、delayMs、createdAt、updatedAt。数据库时间按 UTC 存储/读取，前端转成本地时间。当前分页采用 offset（上限每页 100），替代计划中的游标，适合本题规模；并发新建时需回首页查看最新任务。
+任务响应字段：id、templateId、status、stage、failedStage、error、resultUrl、createdAt、updatedAt。userId、failAt、delayMs 仅内部保存，不直接暴露实体。数据库时间按 UTC 存储/读取，前端转成本地时间。当前分页采用 offset（上限每页 100），替代计划中的游标，适合本题规模；并发新建时需回首页查看最新任务。
 
 ## 后台执行与演示
 
 状态：QUEUED → RUNNING → SUCCEEDED / FAILED。三个阶段固定顺序：ASSET_CHECK（素材检查）→ GENERATE（模拟生成）→ FINALIZE（结果整理）。每阶段单独保存开始/结束，最后阶段生成任务专属 PNG 并保存鉴权预览地址。终态不被查询改写。
 
-单实例 Java 定时工作线程每 500ms 从数据库领取一个等待任务，三个阶段顺序执行。耗时等待不持有数据库事务，HTTP 受理只校验并创建记录，查询只读数据库。多任务排队；关闭页面不会取消 Java 任务。
+单实例 Java 定时工作线程每 500ms 从数据库领取一个等待任务，三个阶段顺序执行。阶段开始与步骤插入、最终步骤与结果元数据/任务成功、任务失败与当前步骤失败分别在短事务中提交，并锁定任务行验证状态。耗时等待和图片绘制不持有数据库事务，HTTP 受理只校验并创建记录，查询只读数据库。失败收尾暂时写库失败时保留内存中的原始失败，暂停领取新任务并在后续调度中重试记录；这不是重新执行制作步骤。数据库持续故障需要人工介入，重启仍按中断失败处理。多任务排队；关闭页面不会取消 Java 任务。
 
 1. 成功：打开模板，上传所需 JPEG / PNG（每张最多 5MB，最多 2400 万像素），点击开始制作，观察阶段与结果。
 2. 失败：详情展开「演示控制」，选择素材检查、模拟生成或结果整理，创建任务。对应阶段稳定失败，后续阶段不执行；历史保存原因。DEMO_MODE=false 时后端拒绝模拟参数、前端隐藏控件。
@@ -99,7 +99,7 @@ MySQL 集成测试：设置 MYSQL_INTEGRATION=true、DB_URL、DB_USER、DB_PASSW
 
 源码包含模板接口、上传校验、匿名隔离、三阶段队列、失败控制、历史和预览、前端状态管理、CI 与 Compose。准确运行结果见 docs/验证记录.md；未实际运行的环境检查不会列为通过。
 
-取舍：单实例、无消息队列、无自动重试/受理幂等/断点续跑；重启将遗留 RUNNING 标成失败并保存中断原因，QUEUED 保留等待领取。未做生产集群和严格 exactly-once。未引用计费/会员/真实 AI。未实现未引用上传与失败孤立文件的自动清理，演示结束后可人工备份再维护清理。任务执行中存储/数据库持续故障可能需要人工介入。前端刷新未提交的上传位会清空，已创建任务和历史不会丢失。没有承诺生产级审计和速率限制。
+取舍：单实例、无消息队列、无自动重试/受理幂等/断点续跑；重启将遗留 RUNNING 标成失败并保存中断原因，QUEUED 保留等待领取。未做生产集群和严格 exactly-once。未引用计费/会员/真实 AI。未实现历史未引用上传的周期清理；当前上传落盘/数据库写入失败和结果收尾失败会尝试清理本次文件，清理失败记录日志。未引用文件的长期自动清理，演示结束后可人工备份再维护清理。任务执行中存储/数据库持续故障可能需要人工介入，文件系统与数据库不能共同组成原子事务，进程被强制终止时仍可能留下孤立文件。前端刷新未提交的上传位会清空，已创建任务和历史不会丢失。没有承诺生产级审计和速率限制。
 
 本地 Docker 引擎不可用，但 GitHub Actions Linux 环境已通过完整 Compose 构建、启动、上传与四任务冒烟，详见验证记录。已读取题目列表和详情参考图，保留分类卡片与左侧制作/右侧历史的主要布局；品牌、素材和配色采用原创方案。
 
@@ -123,3 +123,11 @@ AI 工作流示例：将 R-07/R-08 转成独立任务查询与“请求错误/�
 
 容器冒烟：启动后运行 python scripts/smoke.py（标准库，无额外依赖）。上传示例位于 frontend/public/demo/sample.png；也可选自己的照片。CI 的 compose 作业执行同样的容器冒烟。
 
+
+## 健壮性与交互回归
+
+本轮优化包含严格请求 DTO 校验（模板/素材 ID、空值、数量、失败阶段、整数耗时、分页边界）、统一错误体与请求编号、独立响应 DTO、阶段短事务及失败记录恢复、文件路径边界与清理。未知 JSON 字段及小数耗时会返回 400，不静默修正。前端上传限制来自模板接口，取消选图不会清空准备好的素材；迟到请求不能覆盖替换结果。结果图片请求失败只显示图片重试，不改变业务成功状态。
+
+动效使用 CSS：上传遮罩、真实阶段状态提示、按钮反馈和图片淡入，预留图片比例；支持 prefers-reduced-motion。不会用动画伪造后台进度。CI 的浏览器检查脚本 scripts/browser-smoke.cjs 覆盖真实上传、成功/失败、刷新、查询异常恢复、个人记录、小屏溢出和减少动态效果，并上传 browser-screenshots。浏览器工具仅隔离安装在 CI 临时目录，不增加应用运行依赖；实际结果以对应流水线为准。
+
+本轮新增投入约 30 分钟（自约 20:05 开始，含源码修改、回归和交付，最终时间见本轮修复记录），与前面的首轮/复核投入分别记录，不把估算当成实际总耗时。

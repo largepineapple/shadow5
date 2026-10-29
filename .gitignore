@@ -12,3 +12,5 @@ target/
 .tools/
 
 docs/references/
+
+artifacts/
