@@ -4,6 +4,7 @@ COPY pom.xml .
 COPY src src
 RUN mvn -B package
 FROM eclipse-temurin:21-jre
+RUN apt-get update && apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/target/studio-1.0.0.jar app.jar
 RUN mkdir /data && chown 10001:10001 /data
@@ -11,3 +12,4 @@ USER 10001
 ENV STORAGE_DIR=/data
 EXPOSE 8080
 ENTRYPOINT ["java","-Djava.awt.headless=true","-jar","app.jar"]
+

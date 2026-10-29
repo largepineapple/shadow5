@@ -31,7 +31,8 @@ public class FilesService {
     if (file.isEmpty() || file.getSize() > 5242880)
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择不超过 5MB 的图片");
     String mime;
-    try (var in = ImageIO.createImageInputStream(file.getInputStream())) {
+    try (var input = file.getInputStream();
+        var in = ImageIO.createImageInputStream(input)) {
       Iterator<ImageReader> readers = ImageIO.getImageReaders(in);
       if (!readers.hasNext())
         throw new ResponseStatusException(
