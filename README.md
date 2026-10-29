@@ -1,5 +1,7 @@
 # 留影 · Shadow Studio
 
+[![CI](https://github.com/largepineapple/shadow5/actions/workflows/verify.yml/badge.svg)](https://github.com/largepineapple/shadow5/actions/workflows/verify.yml)
+
 一个独立运行的素材制作网站：Next.js 负责浏览、上传和异步状态，Java 负责身份、业务与多步骤后台处理，MySQL 持久化任务和历史。制作结果是本地模拟 PNG，无真实 AI 服务。
 
 ## 快速启动（推荐容器）
@@ -99,7 +101,7 @@ MySQL 集成测试：设置 MYSQL_INTEGRATION=true、DB_URL、DB_USER、DB_PASSW
 
 取舍：单实例、无消息队列、无自动重试/受理幂等/断点续跑；重启将遗留 RUNNING 标成失败并保存中断原因，QUEUED 保留等待领取。未做生产集群和严格 exactly-once。未引用计费/会员/真实 AI。未实现未引用上传与失败孤立文件的自动清理，演示结束后可人工备份再维护清理。任务执行中存储/数据库持续故障可能需要人工介入。前端刷新未提交的上传位会清空，已创建任务和历史不会丢失。没有承诺生产级审计和速率限制。
 
-本地当前 Docker 引擎启动受环境限制，Compose 实跑结果需看验证记录。已读取题目列表和详情参考图，保留分类卡片与左侧制作/右侧历史的主要布局；品牌、素材和配色采用原创方案。
+本地 Docker 引擎不可用，但 GitHub Actions Linux 环境已通过完整 Compose 构建、启动、上传与四任务冒烟，详见验证记录。已读取题目列表和详情参考图，保留分类卡片与左侧制作/右侧历史的主要布局；品牌、素材和配色采用原创方案。
 
 ## 部署与回滚
 
@@ -118,3 +120,4 @@ AI 工作流示例：将 R-07/R-08 转成独立任务查询与“请求错误/�
 
 
 容器冒烟：启动后运行 python scripts/smoke.py（标准库，无额外依赖）。上传示例位于 frontend/public/demo/sample.png；也可选自己的照片。CI 的 compose 作业执行同样的容器冒烟。
+
