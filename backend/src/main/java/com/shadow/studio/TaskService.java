@@ -66,4 +66,13 @@ public class TaskService {
     for (int i = 0; i < input.assetIds().size(); i++) store.attach(id, input.assetIds().get(i), i);
     return store.task(id, user);
   }
+
+  @Transactional(
+      readOnly = true,
+      isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+  public TaskDetail detail(String user, String id) {
+    Task task = store.task(id, user);
+    if (task == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "任务不存在");
+    return new TaskDetail(TaskView.of(task), store.steps(id));
+  }
 }

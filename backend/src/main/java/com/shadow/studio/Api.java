@@ -81,10 +81,8 @@ public class Api {
   }
 
   @GetMapping("/tasks/{id}")
-  public Map<String, Object> task(
+  public TaskDetail task(
       HttpServletRequest req, @PathVariable @Pattern(regexp = Models.UUID_PATTERN) String id) {
-    Task t = store.task(id, user(req));
-    if (t == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "任务不存在");
-    return Map.of("task", TaskView.of(t), "steps", store.steps(id));
+    return tasks.detail(user(req), id);
   }
 }

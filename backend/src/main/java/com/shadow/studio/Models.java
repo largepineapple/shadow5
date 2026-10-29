@@ -89,4 +89,6 @@ public class Models {
       return new AssetView(asset.id(), asset.mimeType(), asset.sizeBytes(), asset.getPreviewUrl());
     }
   }
+
+  public record TaskDetail(TaskView task, List<Step> steps) {}
 }

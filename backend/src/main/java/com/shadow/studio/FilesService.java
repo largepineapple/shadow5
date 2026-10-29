@@ -30,8 +30,9 @@ public class FilesService {
   }
 
   public Asset upload(String user, MultipartFile file) throws IOException {
-    if (file.isEmpty() || file.getSize() > ImagePolicy.MAX_BYTES)
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择不超过 5MB 的图片");
+    if (file.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择有效图片");
+    if (file.getSize() > ImagePolicy.MAX_BYTES)
+      throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "图片不能超过 5MB");
     String mime;
     try (var input = file.getInputStream();
         var in = ImageIO.createImageInputStream(input)) {
