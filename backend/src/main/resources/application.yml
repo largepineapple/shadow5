@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/shadow?connectionTimeZone=UTC}
+    username: ${DB_USER:shadow}
+    password: ${DB_PASSWORD:local-shadow-password}
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+studio:
+  storage: ${STORAGE_DIR:./.data}
+  origin: ${APP_ORIGIN:http://localhost:3000}
+  demo: ${DEMO_MODE:true}
+  secure-cookie: ${SECURE_COOKIE:false}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

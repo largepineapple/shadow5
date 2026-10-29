@@ -1,0 +1,48 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: shadow
+      MYSQL_USER: shadow
+      MYSQL_PASSWORD: ${DB_PASSWORD:-local-shadow-password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-local-root-password}
+    volumes:
+      - database:/var/lib/mysql
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD=$$MYSQL_PASSWORD mysql -h 127.0.0.1 -u shadow shadow -e "SELECT 1"']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  api:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/shadow?connectionTimeZone=UTC
+      DB_USER: shadow
+      DB_PASSWORD: ${DB_PASSWORD:-local-shadow-password}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      DEMO_MODE: ${DEMO_MODE:-true}
+      SECURE_COOKIE: ${SECURE_COOKIE:-false}
+    volumes:
+      - files:/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, 'bash -c "echo > /dev/tcp/127.0.0.1/8080"']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  web:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_DEMO_MODE: ${DEMO_MODE:-true}
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+volumes:
+  database:
+  files:
+
