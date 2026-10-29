@@ -265,17 +265,20 @@ function Editor({ id }: { id: string }) {
         </div>
         <section className="studio-history">
           <div className="section-heading">
-            <h2>本次创作</h2>
+            <h2>制作记录</h2>
             <Link href="/history">全部作品 →</Link>
           </div>
           <div className="task-grid">
-            {visible.length === 0 && (
+            {history.isPending && visible.length === 0 && (
+              <p role="status">正在加载制作记录…</p>
+            )}
+            {history.isSuccess && visible.length === 0 && (
               <div className="empty">
                 还没有制作记录，上传照片开始第一次创作。
               </div>
             )}
             {history.isError && (
-              <div className="notice">
+              <div className="notice" role="alert">
                 历史加载失败
                 <button onClick={() => history.refetch()}>重新加载</button>
               </div>

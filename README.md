@@ -116,7 +116,9 @@ MySQL 集成测试：设置 MYSQL_INTEGRATION=true、DB_URL、DB_USER、DB_PASSW
 
 AI 工作流示例：将 R-07/R-08 转成独立任务查询与“请求错误/业务失败”两类状态；生成组件后执行 Testing Library 测试，发现模拟路径使用 /a 导致匹配所有 /api 请求，修正成精确后缀并重新验证；没有用修改业务状态来让测试通过。所有验证以实际命令输出为准，不以生成代码作为完成证据。
 
-实际投入按执行会话记录在 docs/验证记录.md；计划估算 27～35 小时不是实际投入。验收以最终提交 SHA 为准，执行 git rev-parse HEAD 获取；源码仓库：https://github.com/largepineapple/shadow5。
+实际投入：首轮开发、验证和交付整理约 55 分钟（2026-10-29 18:52～19:47，北京时间，含依赖下载、CI 修复和交付同步）；本次需求复核另行记录在 docs/需求复核.md。此前约 45 分钟的记录只统计到 19:37，未包含最终交付同步，本处补齐。计划估算 27～35 小时不是实际投入。取舍为单实例数据库队列、匿名身份、本地文件和模拟结果，优先保证异步业务闭环及可验证性。更多执行证据见 docs/验证记录.md。
+
+已通过全部三组 CI 的验收基线：`70e85ca3213f3567959a5c4820390bb7403c6356`，对应 https://github.com/largepineapple/shadow5/actions/runs/40867642235 。后续需求复核修正见 docs/需求复核.md；最新提交可用 git rev-parse HEAD 获取。源码仓库：https://github.com/largepineapple/shadow5。
 
 
 容器冒烟：启动后运行 python scripts/smoke.py（标准库，无额外依赖）。上传示例位于 frontend/public/demo/sample.png；也可选自己的照片。CI 的 compose 作业执行同样的容器冒烟。
