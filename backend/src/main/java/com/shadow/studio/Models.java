@@ -58,7 +58,15 @@ public class Models {
               assetIds,
       @Pattern(regexp = "ASSET_CHECK|GENERATE|FINALIZE", message = "无效的失败阶段") String failAt,
       @Min(value = 0, message = "耗时不能小于 0") @Max(value = 30000, message = "耗时不能超过 30000 毫秒")
-          Integer delayMs) {}
+          Integer delayMs) {
+    public CreateTask {
+      if (assetIds != null)
+        assetIds =
+            assetIds.stream()
+                .map(id -> id == null ? null : id.toLowerCase(java.util.Locale.ROOT))
+                .toList();
+    }
+  }
 
   public record TaskView(
       String id,

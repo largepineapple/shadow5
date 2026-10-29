@@ -36,7 +36,7 @@ public class TaskService {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "素材 ID 格式不正确");
       Asset a = store.assetById(id, user);
       if (a == null
-          || !Files.isRegularFile(files.path(id))
+          || !Files.isRegularFile(files.path(a.id()))
           || a.sizeBytes() > template.getMaxFileSizeBytes()
           || !template.getAcceptedMimeTypes().contains(a.mimeType()))
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "素材不可用或不属于当前用户");

@@ -23,4 +23,19 @@ class TaskServiceTest {
         () -> service.create("other", new Models.CreateTask("coast", List.of("foreign"), null, 0)));
     verify(store, never()).create(any());
   }
+
+  @Test
+  void caseVariantsCannotBypassDistinctAssetValidation() {
+    Store store = mock(Store.class);
+    when(store.template("postcard"))
+        .thenReturn(
+            new Models.Template("postcard", "title", "category", "description", "cover", 2));
+    String id = "b0712753-d790-4fe7-8ed9-4daf89c97a8c";
+    TaskService service = new TaskService(store, mock(FilesService.class), true);
+    var input =
+        new Models.CreateTask(
+            "postcard", List.of(id, id.toUpperCase(java.util.Locale.ROOT)), null, 0);
+    assertThrows(ResponseStatusException.class, () -> service.create("owner", input));
+    verify(store, never()).create(any());
+  }
 }

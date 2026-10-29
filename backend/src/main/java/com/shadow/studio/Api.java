@@ -58,12 +58,12 @@ public class Api {
   public ResponseEntity<Resource> content(
       HttpServletRequest req, @PathVariable @Pattern(regexp = Models.UUID_PATTERN) String id) {
     Asset a = store.assetById(id, user(req));
-    if (a == null || !java.nio.file.Files.isRegularFile(files.path(id)))
+    if (a == null || !java.nio.file.Files.isRegularFile(files.path(a.id())))
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "素材不存在");
     return ResponseEntity.ok()
         .contentType(MediaType.parseMediaType(a.mimeType()))
         .header("X-Content-Type-Options", "nosniff")
-        .body(new FileSystemResource(files.path(id)));
+        .body(new FileSystemResource(files.path(a.id())));
   }
 
   @PostMapping("/tasks")
